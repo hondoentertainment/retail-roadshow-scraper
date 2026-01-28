@@ -1,0 +1,2 @@
+# API-only requirements (lightweight)
+# Heavy dependencies (playwright, etc.) are in the Modal backend

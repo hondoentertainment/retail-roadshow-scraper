@@ -1,0 +1,8 @@
+# Exclude heavy files from Vercel deployment
+main.py
+modal_scraper.py
+requirements.txt
+__pycache__/
+*.pyc
+.git/
+credentials.json
