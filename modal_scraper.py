@@ -37,17 +37,27 @@ image = (
 )
 
 
-def get_google_credentials():
-    """Load Google credentials from Modal secret (passed via secrets decorator)."""
+def get_google_credentials_from_token(access_token: str):
+    """Create credentials from user's OAuth access token."""
+    from google.oauth2.credentials import Credentials
+    
+    return Credentials(
+        token=access_token,
+        scopes=[
+            "https://www.googleapis.com/auth/drive.file",
+            "https://www.googleapis.com/auth/documents",
+        ]
+    )
+
+
+def get_service_account_credentials():
+    """Load service account credentials from Modal secret (fallback)."""
     import os
     from google.oauth2 import service_account
     
     creds_b64 = os.environ.get("GOOGLE_CREDENTIALS_JSON")
     if not creds_b64:
-        raise ValueError(
-            "GOOGLE_CREDENTIALS_JSON not found in environment. "
-            "Create a secret named 'google-credentials' at: https://modal.com/secrets"
-        )
+        return None
     
     creds_json = base64.b64decode(creds_b64).decode()
     creds_dict = json.loads(creds_json)
@@ -80,13 +90,14 @@ def extract_ticker(header_text: str) -> Optional[str]:
     image=image,
     timeout=600,  # 10 minute timeout for long presentations
 )
-def scrape_roadshow(url: str, drive_folder_id: Optional[str] = None) -> dict:
+def scrape_roadshow(url: str, drive_folder_id: Optional[str] = None, access_token: Optional[str] = None) -> dict:
     """
     Scrape a roadshow presentation and upload to Google Drive/Docs.
     
     Args:
         url: RetailRoadshow presentation URL
         drive_folder_id: Optional Google Drive folder ID
+        access_token: Optional user's Google OAuth access token
         
     Returns:
         Dict with result status and document/file ID
@@ -96,7 +107,14 @@ def scrape_roadshow(url: str, drive_folder_id: Optional[str] = None) -> dict:
     from googleapiclient.http import MediaIoBaseUpload
     import requests
     
-    credentials = get_google_credentials()
+    # Use user's access token if provided, otherwise fall back to service account
+    if access_token:
+        credentials = get_google_credentials_from_token(access_token)
+    else:
+        credentials = get_service_account_credentials()
+        if not credentials:
+            return {"status": "error", "error": "No Google credentials available"}
+    
     drive_service = build("drive", "v3", credentials=credentials)
     docs_service = build("docs", "v1", credentials=credentials)
     
@@ -267,15 +285,20 @@ def webhook(data: dict) -> dict:
     Expected payload:
     {
         "url": "https://retailroadshow.com/...",
-        "drive_folder_id": "optional-folder-id"
+        "drive_folder_id": "optional-folder-id",
+        "access_token": "user's Google OAuth access token"
     }
     """
     url = data.get("url")
     if not url:
         return {"error": "Missing 'url' in request"}
     
-    # Spawn async job
-    job = scrape_roadshow.spawn(url, data.get("drive_folder_id"))
+    # Spawn async job with user's access token
+    job = scrape_roadshow.spawn(
+        url, 
+        data.get("drive_folder_id"),
+        data.get("access_token")
+    )
     
     return {
         "status": "queued",

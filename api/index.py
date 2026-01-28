@@ -61,10 +61,11 @@ class handler(BaseHTTPRequestHandler):
                 }).encode())
                 return
 
-            # Trigger Modal scraper
+            # Trigger Modal scraper with user's access token
             payload = json.dumps({
                 "url": url,
-                "drive_folder_id": data.get("drive_folder_id")
+                "drive_folder_id": data.get("drive_folder_id"),
+                "access_token": data.get("access_token")  # User's Google OAuth token
             }).encode()
 
             req = urllib.request.Request(

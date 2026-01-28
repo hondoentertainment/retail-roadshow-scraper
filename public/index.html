@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RetailRoadshow Scraper</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #0d0d1a 100%);
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .logo h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .logo p {
+            color: #8b8ba7;
+            font-size: 1rem;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 2.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        /* User Profile Section */
+        .user-profile {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid #667eea;
+        }
+
+        .user-name {
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .user-email {
+            font-size: 0.75rem;
+            color: #8b8ba7;
+        }
+
+        .btn-signout {
+            padding: 0.5rem 1rem;
+            font-size: 0.75rem;
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-signout:hover {
+            background: rgba(239, 68, 68, 0.3);
+        }
+
+        /* Sign In Section */
+        .signin-section {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .signin-section p {
+            color: #8b8ba7;
+            margin-bottom: 1.5rem;
+        }
+
+        .google-signin-container {
+            display: flex;
+            justify-content: center;
+        }
+
+        .input-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #a0a0b8;
+            margin-bottom: 0.75rem;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 1rem 1.25rem;
+            font-size: 1rem;
+            font-family: inherit;
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: #ffffff;
+            transition: all 0.3s ease;
+        }
+
+        .input-group input::placeholder {
+            color: #6b6b80;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: rgba(255, 255, 255, 0.12);
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.2);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            font-family: inherit;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #ffffff;
+            box-shadow: 0 10px 30px -10px rgba(102, 126, 234, 0.5);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 40px -10px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .status {
+            margin-top: 1.5rem;
+            padding: 1rem 1.25rem;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            display: none;
+        }
+
+        .status.show {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .status.success {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #10b981;
+        }
+
+        .status.error {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+        }
+
+        .status.pending {
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            color: #f59e0b;
+        }
+
+        .status-icon {
+            font-size: 1.25rem;
+            margin-right: 0.5rem;
+        }
+
+        .footer {
+            margin-top: 2rem;
+            text-align: center;
+            color: #6b6b80;
+            font-size: 0.75rem;
+        }
+
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .drive-info {
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.8rem;
+            color: #a0a0c8;
+        }
+
+        .drive-info svg {
+            vertical-align: middle;
+            margin-right: 0.5rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="logo">
+            <h1>Roadshow Scraper</h1>
+            <p>Extract slide decks from RetailRoadshow into Google Docs</p>
+        </div>
+
+        <div class="card">
+            <!-- Sign In Section (shown when not logged in) -->
+            <div id="signinSection" class="signin-section">
+                <p>Sign in with Google to save documents directly to your Drive</p>
+                <div id="googleSigninBtn" class="google-signin-container"></div>
+            </div>
+
+            <!-- Main Form (shown when logged in) -->
+            <div id="mainSection" class="hidden">
+                <!-- User Profile -->
+                <div class="user-profile">
+                    <div class="user-info">
+                        <img id="userAvatar" class="user-avatar" src="" alt="Profile">
+                        <div>
+                            <div id="userName" class="user-name"></div>
+                            <div id="userEmail" class="user-email"></div>
+                        </div>
+                    </div>
+                    <button id="signoutBtn" class="btn-signout">Sign Out</button>
+                </div>
+
+                <div class="drive-info">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                    </svg>
+                    Documents will be saved to your Google Drive
+                </div>
+
+                <form id="scrapeForm">
+                    <div class="input-group">
+                        <label for="url">Presentation URL</label>
+                        <input type="url" id="url" name="url" placeholder="https://retailroadshow.com/presentation/..."
+                            required>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="folderId">Google Drive Folder ID (optional)</label>
+                        <input type="text" id="folderId" name="folderId" placeholder="Leave empty to use root folder">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" id="submitBtn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                        Start Scraping
+                    </button>
+                </form>
+
+                <div id="status" class="status"></div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Powered by <a href="https://modal.com" target="_blank">Modal</a> & <a href="https://vercel.com"
+                    target="_blank">Vercel</a></p>
+        </div>
+    </div>
+
+    <script>
+        // Configuration - Replace with your Google OAuth Client ID
+        const GOOGLE_CLIENT_ID = window.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
+
+        let accessToken = null;
+        let userProfile = null;
+
+        // DOM Elements
+        const signinSection = document.getElementById('signinSection');
+        const mainSection = document.getElementById('mainSection');
+        const form = document.getElementById('scrapeForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const statusDiv = document.getElementById('status');
+        const urlInput = document.getElementById('url');
+        const folderIdInput = document.getElementById('folderId');
+        const signoutBtn = document.getElementById('signoutBtn');
+
+        // Initialize Google Sign-In
+        window.onload = function () {
+            google.accounts.id.initialize({
+                client_id: GOOGLE_CLIENT_ID,
+                callback: handleCredentialResponse,
+                auto_select: true
+            });
+
+            google.accounts.id.renderButton(
+                document.getElementById('googleSigninBtn'),
+                {
+                    theme: 'filled_black',
+                    size: 'large',
+                    width: 280,
+                    text: 'signin_with'
+                }
+            );
+
+            // Check for existing session
+            const savedToken = localStorage.getItem('google_access_token');
+            const savedProfile = localStorage.getItem('google_profile');
+            if (savedToken && savedProfile) {
+                accessToken = savedToken;
+                userProfile = JSON.parse(savedProfile);
+                showMainSection();
+            }
+        };
+
+        function handleCredentialResponse(response) {
+            // Decode the JWT to get user info
+            const payload = parseJwt(response.credential);
+            userProfile = {
+                name: payload.name,
+                email: payload.email,
+                picture: payload.picture
+            };
+
+            // Get access token for Drive API
+            const tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: GOOGLE_CLIENT_ID,
+                scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/documents',
+                callback: (tokenResponse) => {
+                    accessToken = tokenResponse.access_token;
+                    localStorage.setItem('google_access_token', accessToken);
+                    localStorage.setItem('google_profile', JSON.stringify(userProfile));
+                    showMainSection();
+                }
+            });
+            tokenClient.requestAccessToken();
+        }
+
+        function parseJwt(token) {
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(c =>
+                '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+            ).join(''));
+            return JSON.parse(jsonPayload);
+        }
+
+        function showMainSection() {
+            signinSection.classList.add('hidden');
+            mainSection.classList.remove('hidden');
+            document.getElementById('userAvatar').src = userProfile.picture;
+            document.getElementById('userName').textContent = userProfile.name;
+            document.getElementById('userEmail').textContent = userProfile.email;
+        }
+
+        function signOut() {
+            accessToken = null;
+            userProfile = null;
+            localStorage.removeItem('google_access_token');
+            localStorage.removeItem('google_profile');
+            signinSection.classList.remove('hidden');
+            mainSection.classList.add('hidden');
+            google.accounts.id.disableAutoSelect();
+        }
+
+        signoutBtn.addEventListener('click', signOut);
+
+        function setStatus(message, type) {
+            const icons = { success: '✅', error: '❌', pending: '⏳' };
+            statusDiv.innerHTML = `<span class="status-icon">${icons[type]}</span>${message}`;
+            statusDiv.className = `status show ${type}`;
+        }
+
+        function setLoading(isLoading) {
+            submitBtn.disabled = isLoading;
+            submitBtn.innerHTML = isLoading ? '<div class="spinner"></div> Processing...' : `
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Start Scraping`;
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const url = urlInput.value.trim();
+            if (!url) {
+                setStatus('Please enter a valid URL', 'error');
+                return;
+            }
+
+            if (!accessToken) {
+                setStatus('Please sign in with Google first', 'error');
+                return;
+            }
+
+            setLoading(true);
+            setStatus('Sending request to scraper...', 'pending');
+
+            try {
+                const payload = {
+                    url,
+                    access_token: accessToken
+                };
+                const folderId = folderIdInput.value.trim();
+                if (folderId) payload.drive_folder_id = folderId;
+
+                const response = await fetch('/api', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    setStatus(data.job ?
+                        `Job queued! ID: ${data.job.job_id || 'processing'}. Check your Google Drive shortly.` :
+                        'Request accepted. Check your Google Drive for results.',
+                        'success'
+                    );
+                } else {
+                    setStatus(data.error || 'Failed to start scrape job', 'error');
+                }
+            } catch (error) {
+                setStatus(`Request failed: ${error.message}`, 'error');
+            } finally {
+                setLoading(false);
+            }
+        });
+    </script>
+</body>
+
+</html>
