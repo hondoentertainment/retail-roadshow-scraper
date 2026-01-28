@@ -413,10 +413,10 @@
                 picture: payload.picture
             };
 
-            // Get access token for Drive API
+            // Get access token for Drive API and Gmail
             const tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: GOOGLE_CLIENT_ID,
-                scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/documents',
+                scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/documents https://www.googleapis.com/auth/gmail.send',
                 callback: (tokenResponse) => {
                     accessToken = tokenResponse.access_token;
                     localStorage.setItem('google_access_token', accessToken);
@@ -493,7 +493,8 @@
             try {
                 const payload = {
                     url,
-                    access_token: accessToken
+                    access_token: accessToken,
+                    user_email: userProfile.email
                 };
                 const folderId = folderIdInput.value.trim();
                 if (folderId) payload.drive_folder_id = folderId;
@@ -508,8 +509,8 @@
 
                 if (response.ok) {
                     setStatus(data.job ?
-                        `Job queued! ID: ${data.job.job_id || 'processing'}. Check your Google Drive shortly.` :
-                        'Request accepted. Check your Google Drive for results.',
+                        `Job queued! ID: ${data.job.job_id || 'processing'}. You'll receive an email when complete.` :
+                        'Request accepted. You\'ll receive an email when your document is ready.',
                         'success'
                     );
                 } else {

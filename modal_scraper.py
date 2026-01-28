@@ -46,8 +46,46 @@ def get_google_credentials_from_token(access_token: str):
         scopes=[
             "https://www.googleapis.com/auth/drive.file",
             "https://www.googleapis.com/auth/documents",
+            "https://www.googleapis.com/auth/gmail.send",
         ]
     )
+
+
+def send_notification_email(access_token: str, user_email: str, ticker: str, doc_url: str, doc_type: str):
+    """Send email notification to user when scrape completes."""
+    from googleapiclient.discovery import build
+    from email.mime.text import MIMEText
+    
+    credentials = get_google_credentials_from_token(access_token)
+    gmail_service = build("gmail", "v1", credentials=credentials)
+    
+    subject = f"✅ Roadshow Scrape Complete: {ticker}"
+    body = f"""Your RetailRoadshow scrape has completed successfully!
+
+Ticker: {ticker}
+Type: {doc_type.upper()}
+View in Google Drive: {doc_url}
+
+---
+Roadshow Scraper
+https://retail-roadshow-scraper.vercel.app
+"""
+    
+    message = MIMEText(body)
+    message["to"] = user_email
+    message["subject"] = subject
+    
+    raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode("utf-8")
+    
+    try:
+        gmail_service.users().messages().send(
+            userId="me",
+            body={"raw": raw_message}
+        ).execute()
+        return True
+    except Exception as e:
+        print(f"Failed to send email: {e}")
+        return False
 
 
 def get_service_account_credentials():
@@ -90,7 +128,7 @@ def extract_ticker(header_text: str) -> Optional[str]:
     image=image,
     timeout=600,  # 10 minute timeout for long presentations
 )
-def scrape_roadshow(url: str, drive_folder_id: Optional[str] = None, access_token: Optional[str] = None) -> dict:
+def scrape_roadshow(url: str, drive_folder_id: Optional[str] = None, access_token: Optional[str] = None, user_email: Optional[str] = None) -> dict:
     """
     Scrape a roadshow presentation and upload to Google Drive/Docs.
     
@@ -98,6 +136,7 @@ def scrape_roadshow(url: str, drive_folder_id: Optional[str] = None, access_toke
         url: RetailRoadshow presentation URL
         drive_folder_id: Optional Google Drive folder ID
         access_token: Optional user's Google OAuth access token
+        user_email: Optional user's email for notification
         
     Returns:
         Dict with result status and document/file ID
@@ -171,6 +210,12 @@ def scrape_roadshow(url: str, drive_folder_id: Optional[str] = None, access_toke
                         result["status"] = "success"
                         result["type"] = "pdf"
                         result["file_id"] = file.get("id")
+                        
+                        # Send email notification
+                        if access_token and user_email:
+                            doc_url = f"https://drive.google.com/file/d/{file.get('id')}/view"
+                            send_notification_email(access_token, user_email, ticker, doc_url, "pdf")
+                        
                         return result
             
             # Scrape slide images
@@ -266,6 +311,11 @@ def scrape_roadshow(url: str, drive_folder_id: Optional[str] = None, access_toke
             result["doc_id"] = doc_id
             result["slides_count"] = len(slides)
             
+            # Send email notification
+            if access_token and user_email:
+                doc_url = f"https://docs.google.com/document/d/{doc_id}/edit"
+                send_notification_email(access_token, user_email, ticker, doc_url, "doc")
+            
         except Exception as e:
             result["status"] = "error"
             result["error"] = str(e)
@@ -286,18 +336,20 @@ def webhook(data: dict) -> dict:
     {
         "url": "https://retailroadshow.com/...",
         "drive_folder_id": "optional-folder-id",
-        "access_token": "user's Google OAuth access token"
+        "access_token": "user's Google OAuth access token",
+        "user_email": "user's email for notification"
     }
     """
     url = data.get("url")
     if not url:
         return {"error": "Missing 'url' in request"}
     
-    # Spawn async job with user's access token
+    # Spawn async job with user's access token and email
     job = scrape_roadshow.spawn(
         url, 
         data.get("drive_folder_id"),
-        data.get("access_token")
+        data.get("access_token"),
+        data.get("user_email")
     )
     
     return {
