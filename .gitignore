@@ -16,6 +16,7 @@ env/
 credentials.json
 *.json
 !package.json
+!vercel.json
 
 # Environment variables
 .env
