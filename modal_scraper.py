@@ -31,19 +31,23 @@ image = (
         "google-auth-httplib2",
         "google-auth-oauthlib",
         "requests",
+        "fastapi",
     )
     .run_commands("playwright install chromium && playwright install-deps")
 )
 
 
 def get_google_credentials():
-    """Load Google credentials from Modal secret."""
+    """Load Google credentials from Modal secret (passed via secrets decorator)."""
     import os
     from google.oauth2 import service_account
     
     creds_b64 = os.environ.get("GOOGLE_CREDENTIALS_JSON")
     if not creds_b64:
-        raise ValueError("GOOGLE_CREDENTIALS_JSON secret not set")
+        raise ValueError(
+            "GOOGLE_CREDENTIALS_JSON not found in environment. "
+            "Create a secret named 'google-credentials' at: https://modal.com/secrets"
+        )
     
     creds_json = base64.b64decode(creds_b64).decode()
     creds_dict = json.loads(creds_json)
@@ -74,7 +78,6 @@ def extract_ticker(header_text: str) -> Optional[str]:
 
 @app.function(
     image=image,
-    secrets=[modal.Secret.from_name("google-credentials")],
     timeout=600,  # 10 minute timeout for long presentations
 )
 def scrape_roadshow(url: str, drive_folder_id: Optional[str] = None) -> dict:
