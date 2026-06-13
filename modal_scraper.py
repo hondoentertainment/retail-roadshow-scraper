@@ -82,9 +82,10 @@ https://retail-roadshow-scraper.vercel.app
             userId="me",
             body={"raw": raw_message}
         ).execute()
+        print(f"Email notification sent successfully to {user_email}")
         return True
     except Exception as e:
-        print(f"Failed to send email: {e}")
+        print(f"Failed to send email to {user_email}: {e}")
         return False
 
 
@@ -213,16 +214,75 @@ def scrape_roadshow(url: str, drive_folder_id: Optional[str] = None, access_toke
                         
                         # Send email notification
                         if access_token and user_email:
+                            print(f"Sending email notification to {user_email}...")
                             doc_url = f"https://drive.google.com/file/d/{file.get('id')}/view"
-                            send_notification_email(access_token, user_email, ticker, doc_url, "pdf")
+                            email_sent = send_notification_email(access_token, user_email, ticker, doc_url, "pdf")
+                            result["email_sent"] = email_sent
+                        else:
+                            print(f"Skipping email: access_token={bool(access_token)}, user_email={user_email}")
+                            result["email_sent"] = False
                         
                         return result
             
             # Scrape slide images
-            # [UPDATE SELECTOR] - Adjust slide container and navigation selectors
+            # Comprehensive selectors for various presentation viewer structures
             slides = []
-            slide_selectors = [".slide-container >> img", "img.slide", ".slide-image"]
-            next_selectors = ["button:has-text('Next')", "button[aria-label='Next']", ".next-slide"]
+            slide_selectors = [
+                # RetailRoadshow / AngularJS patterns
+                "[ng-src]",  # Angular image binding
+                "img[src*='slide']",
+                "img[src*='image']",
+                "img[src*='presentation']",
+                ".slide-container img",
+                ".slide img",
+                ".presentation-slide img",
+                ".viewer img",
+                ".player-slide img",
+                # Common presentation viewer patterns
+                ".slide-image",
+                "img.slide",
+                ".nrs-slide img",  # NetRoadshow pattern
+                ".slide-viewer img",
+                "[class*='slide'] img",
+                # Video player frame captures
+                "video",
+                ".video-player",
+                # Canvas-based viewers
+                "canvas.slide",
+                ".slide-canvas",
+                # Iframe content
+                "iframe[src*='slide']",
+                # Generic image in main content area
+                "#rrsViewMain img",
+                "[ui-view='rrsViewMain'] img",
+                "main img",
+                ".main-content img",
+            ]
+            next_selectors = [
+                # Button text patterns
+                "button:has-text('Next')",
+                "button:has-text('next')",
+                "button:has-text('→')",
+                "button:has-text('>')",
+                # Aria labels
+                "button[aria-label='Next']",
+                "button[aria-label='next slide']",
+                "[aria-label='Next']",
+                # Common class patterns
+                ".next-slide",
+                ".btn-next",
+                ".next-btn",
+                ".slide-next",
+                ".nav-next",
+                "[class*='next']",
+                # Icon-based buttons
+                "button .fa-chevron-right",
+                "button .fa-arrow-right",
+                ".glyphicon-chevron-right",
+                # AngularJS patterns
+                "[ng-click*='next']",
+                "[ng-click*='Next']",
+            ]
             
             def find_slide():
                 for sel in slide_selectors:
@@ -264,8 +324,43 @@ def scrape_roadshow(url: str, drive_folder_id: Optional[str] = None, access_toke
                     slides.append(img)
             
             if not slides:
+                # Debug: Log what elements we found on the page
+                print("No slides captured. Running diagnostics...")
+                for sel in slide_selectors[:10]:  # Check first 10 selectors
+                    try:
+                        els = page.query_selector_all(sel)
+                        if els:
+                            print(f"  Selector '{sel}': found {len(els)} elements")
+                    except:
+                        pass
+                
+                # Capture and upload debug screenshot to Google Drive
+                print("Capturing debug screenshot...")
+                debug_screenshot = page.screenshot(full_page=True)
+                
+                try:
+                    from googleapiclient.http import MediaIoBaseUpload
+                    debug_metadata = {
+                        "name": f"DEBUG_{ticker}_screenshot.png",
+                        "mimeType": "image/png"
+                    }
+                    if drive_folder_id:
+                        debug_metadata["parents"] = [drive_folder_id]
+                    
+                    media = MediaIoBaseUpload(io.BytesIO(debug_screenshot), mimetype="image/png")
+                    debug_file = drive_service.files().create(
+                        body=debug_metadata,
+                        media_body=media,
+                        fields="id"
+                    ).execute()
+                    
+                    result["debug_screenshot_id"] = debug_file.get("id")
+                    print(f"Debug screenshot uploaded: {debug_file.get('id')}")
+                except Exception as e:
+                    print(f"Failed to upload debug screenshot: {e}")
+                
                 result["status"] = "error"
-                result["error"] = "No slides captured"
+                result["error"] = "No slides captured - check debug screenshot in Google Drive"
                 return result
             
             # Create Google Doc with slides
@@ -313,8 +408,13 @@ def scrape_roadshow(url: str, drive_folder_id: Optional[str] = None, access_toke
             
             # Send email notification
             if access_token and user_email:
+                print(f"Sending email notification to {user_email} for doc...")
                 doc_url = f"https://docs.google.com/document/d/{doc_id}/edit"
-                send_notification_email(access_token, user_email, ticker, doc_url, "doc")
+                email_sent = send_notification_email(access_token, user_email, ticker, doc_url, "doc")
+                result["email_sent"] = email_sent
+            else:
+                print(f"Skipping doc email: access_token={bool(access_token)}, user_email={user_email}")
+                result["email_sent"] = False
             
         except Exception as e:
             result["status"] = "error"
